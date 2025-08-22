@@ -1,0 +1,23 @@
+{
+  "name": "tradeovate-server",
+  "version": "1.0.0",
+  "description": "Local API for Tradeovate copy-trading POC (Express + Supabase)",
+  "private": true,
+  "type": "commonjs",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js",
+    "test:api": "node testRunner.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.56.0",
+    "axios": "^1.7.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "morgan": "^1.10.1",
+    "node-fetch": "^2.6.12",
+    "zod": "^4.0.17"
+  }
+}
