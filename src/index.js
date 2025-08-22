@@ -4,6 +4,9 @@ require('dotenv').config();
 const express = require('express');
 const morgan  = require('morgan');
 const cors    = require('cors');
+const signalsRoutes = require('./routes/signals');
+app.use('/signals', signalsRoutes);
+
 
 const app  = express();
 const PORT = Number(process.env.PORT || 8080);

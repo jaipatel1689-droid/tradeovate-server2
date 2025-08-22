@@ -1,66 +1,56 @@
 // src/routes/signals.js
 const express = require('express');
-const router  = express.Router();
-const sb      = require('../lib/supabase');
+const router = express.Router();
+const sb = require('../lib/supabase');
 
-// simple body validator
-function pickSignal(payload) {
-  const {
-    user_id,
-    symbol,
-    side,
-    qty,
-    price,
-    strategy = null,
-    confidence = null,
-    notes = null,
-  } = payload || {};
-
-  return {
-    user_id,
-    symbol,
-    side: (side || '').toUpperCase(),   // DB CHECK expects BUY/SELL
-    qty,
-    price,
-    strategy,
-    confidence,
-    notes,
-    opened_at: new Date().toISOString(),
-  };
-}
-
-// POST /signals  -> create
+// POST /signals  (create a signal)
 router.post('/', async (req, res) => {
   try {
-    const row = pickSignal(req.body);
+    const {
+      user_id,
+      follower_id = null,
+      symbol,
+      side,
+      qty,
+      price,
+      strategy = null,
+      confidence = null,
+      notes = null,
+    } = req.body || {};
 
-    // basic required checks before DB round-trip
-    const required = ['user_id', 'symbol', 'side', 'qty', 'price'];
-    for (const k of required) {
-      if (row[k] === undefined || row[k] === null || row[k] === '') {
-        return res.status(400).json({ error: `Missing field: ${k}` });
-      }
+    // basic validations (server-side guard rails)
+    if (!user_id || !symbol || !side || !qty || !price) {
+      return res.status(400).json({ error: 'Missing required fields.' });
     }
-    if (!['BUY', 'SELL'].includes(row.side)) {
-      return res.status(400).json({ error: "side must be 'BUY' or 'SELL'" });
+    // enforce check constraint expectation
+    const SIDE = String(side).toUpperCase();
+    if (!['BUY', 'SELL'].includes(SIDE)) {
+      return res.status(400).json({ error: "side must be 'BUY' or 'SELL' (uppercase)" });
     }
 
-    const { data, error } = await sb
-      .from('signals')
-      .insert(row)
-      .select()
-      .single();
+    const payload = {
+      user_id,
+      follower_id,
+      symbol,
+      side: SIDE,
+      qty,
+      price,
+      strategy,
+      confidence,
+      notes,
+    };
 
+    const { data, error } = await sb.from('signals').insert(payload).select().single();
     if (error) {
-      return res.status(500).json({ error: 'insert failed', detail: error.message || error });
+      return res.status(500).json({ error: 'Server insert error', detail: error.message });
     }
-    return res.status(201).json(data);
+    return res.json(data);
   } catch (err) {
-    return res.status(500).json({ error: 'server error', detail: String(err) });
+    return res.status(500).json({ error: 'Server error', detail: String(err?.message || err) });
   }
 });
 
-// GET /signals  -> list
+// GET /signals (list most recent)
 router.get('/', async (_req, res) => {
   try {
     const { data, error } = await sb
@@ -70,14 +60,12 @@ router.get('/', async (_req, res) => {
       .limit(50);
 
     if (error) {
-      return res.status(500).json({ error: 'query failed', detail: error.message || error });
+      return res.status(500).json({ error: 'Query error', detail: error.message });
     }
     return res.json(data || []);
   } catch (err) {
-    return res.status(500).json({ error: 'server error', detail: String(err) });
+    return res.status(500).json({ error: 'Server error', detail: String(err?.message || err) });
   }
 });
 
 module.exports = router;
-
-
