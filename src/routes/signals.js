@@ -1,66 +1,66 @@
 // src/routes/signals.js
 const express = require('express');
-const sb = require('../lib/supabase');
+const router  = express.Router();
+const sb      = require('../lib/supabase');
 
-const router = express.Router();
+// simple body validator
+function pickSignal(payload) {
+  const {
+    user_id,
+    symbol,
+    side,
+    qty,
+    price,
+    strategy = null,
+    confidence = null,
+    notes = null,
+  } = payload || {};
 
-const up = (v) => (typeof v === 'string' ? v.toUpperCase() : v);
+  return {
+    user_id,
+    symbol,
+    side: (side || '').toUpperCase(),   // DB CHECK expects BUY/SELL
+    qty,
+    price,
+    strategy,
+    confidence,
+    notes,
+    opened_at: new Date().toISOString(),
+  };
+}
 
-// POST /signals  → insert one signal
+// POST /signals  -> create
 router.post('/', async (req, res) => {
   try {
-    let {
-      user_id,
-      symbol,
-      side,
-      qty,
-      price,
-      strategy = null,
-      confidence = null,
-      notes = null,
-    } = req.body || {};
+    const row = pickSignal(req.body);
 
-    if (!user_id || !symbol || !side || qty == null || price == null) {
-      return res.status(400).json({
-        error:
-          'Missing required fields: user_id, symbol, side, qty, price are required.',
-      });
+    // basic required checks before DB round-trip
+    const required = ['user_id', 'symbol', 'side', 'qty', 'price'];
+    for (const k of required) {
+      if (row[k] === undefined || row[k] === null || row[k] === '') {
+        return res.status(400).json({ error: `Missing field: ${k}` });
+      }
     }
-
-    side = up(side); // your DB CHECK expects 'BUY' or 'SELL'
-
-    const payload = {
-      user_id,
-      symbol,
-      side,
-      qty,
-      price,
-      strategy,
-      confidence,
-      notes,
-      opened_at: new Date().toISOString(),
-    };
+    if (!['BUY', 'SELL'].includes(row.side)) {
+      return res.status(400).json({ error: "side must be 'BUY' or 'SELL'" });
+    }
 
     const { data, error } = await sb
       .from('signals')
-      .insert(payload)
+      .insert(row)
       .select()
       .single();
 
     if (error) {
-      return res.status(500).json({
-        error: 'Server insert error',
-        detail: error.message,
-      });
+      return res.status(500).json({ error: 'insert failed', detail: error.message || error });
     }
-
-    return res.json(data);
+    return res.status(201).json(data);
   } catch (err) {
-    return res.status(500).json({ error: 'Server error', detail: err.message });
+    return res.status(500).json({ error: 'server error', detail: String(err) });
   }
 });
 
-// GET /signals  → list latest 50
+// GET /signals  -> list
 router.get('/', async (_req, res) => {
   try {
     const { data, error } = await sb
@@ -70,16 +70,14 @@ router.get('/', async (_req, res) => {
       .limit(50);
 
     if (error) {
-      return res
-        .status(500)
-        .json({ error: 'List error', detail: error.message });
+      return res.status(500).json({ error: 'query failed', detail: error.message || error });
     }
-
-    res.json(data);
+    return res.json(data || []);
   } catch (err) {
-    res.status(500).json({ error: 'Server error', detail: err.message });
+    return res.status(500).json({ error: 'server error', detail: String(err) });
   }
 });
 
 module.exports = router;
+
 

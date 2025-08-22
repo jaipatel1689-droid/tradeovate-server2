@@ -2,51 +2,49 @@
 require('dotenv').config();
 
 const express = require('express');
-const morgan = require('morgan');
-const cors = require('cors');
+const morgan  = require('morgan');
+const cors    = require('cors');
 
-const app = express();
-const PORT = process.env.PORT || 8080;
+const app  = express();
+const PORT = Number(process.env.PORT || 8080);
 
-// --- middleware
-app.use(cors());
+// ---------- middleware
 app.use(express.json());
+app.use(cors());
 app.use(morgan('dev'));
 
-// --- mount optional routes if present (so missing files won't crash)
-function mountOptional(path, mount) {
+// ---------- health check
+app.get('/healthz', (_req, res) => {
+  res.json({ ok: true, ts: new Date().toISOString() });
+});
+
+// ---------- helper to mount optional routes without crashing
+function mountOptional(path, mountFn) {
   try {
-    const r = require(path);
-    app.use(mount, r);
-    console.log(`Mounted ${mount} from ${path}`);
-  } catch (e) {
-    console.warn(`Skipping ${path}: ${e.code || e.message}`);
+    const router = require(mountFn);
+    app.use(path, router);
+    console.log(`Mounted ${path} from ${mountFn}`);
+  } catch (err) {
+    console.warn(`Skipping ${path}: ${mountFn} ${err.code || ''}`);
   }
 }
 
-mountOptional('./routes/dev', '/dev');
-mountOptional('./routes/dashboard', '/dashboard');
-mountOptional('./routes/ledger', '/ledger');
-mountOptional('./routes/orders', '/orders');
-mountOptional('./routes/executions', '/executions');
-mountOptional('./routes/tokens', '/tokens');
-mountOptional('./routes/settings', '/settings');
+// ---------- routes
+mountOptional('/dev',         './routes/dev');
+mountOptional('/dashboard',   './routes/dashboard');
+mountOptional('/orders',      './routes/orders');
+mountOptional('/executions',  './routes/executions');
+// tokens is optional; your project may not have it:
+mountOptional('/tokens',      './routes/tokens');
+// ✅ required for this task:
+mountOptional('/signals',     './routes/signals');
 
-// --- signals (required in this task)
-app.use('/signals', require('./routes/signals'));
-
-// --- health
-app.get('/healthz', (_req, res) =>
-  res.json({ ok: true, t: new Date().toISOString() })
-);
-
-// --- start
+// ---------- start
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  if (process.env.FEATURE_USE_MOCK) {
-    console.log('Mock features enabled (FEATURE_USE_MOCK=1)');
-  }
+  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Mock features enabled (FEATURE_USE_MOCK=${process.env.FEATURE_USE_MOCK || 0})`);
 });
 
 module.exports = app;
+
 
