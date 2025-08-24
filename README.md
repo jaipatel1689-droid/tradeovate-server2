@@ -46,7 +46,7 @@ TRADEOVATE_OAUTH_AUTHORIZE_URL=TODO_FILL_IN
 TRADEOVATE_OAUTH_TOKEN_URL=TODO_FILL_IN
 TRADEOVATE_REDIRECT_URI=http://localhost:8080/auth/callback
 
-# Supabase (replace with your project info)
-SUPABASE_URL=https://etgbprdctaq1wukmkymq.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY   # never commit the real key
-SUPABASE_ANON_KEY=YOUR_ANON_KEY                   # optional
+# Supabase (with your real project info)
+SUPABASE_URL=https://etgbprdctaq1wukmkyqmq.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0Z2JwcmRjdGFxMXd1a21reXFtZyIsInJhbmdlIjoiYXBpIiwiY3JlYXRlZEF0IjoiMjAyNS0wOC0yMlQxNTo1Mzo1Mi4zMTlaIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcyNDM5MDAzMiwiZXhwIjoxNzU1OTY2MDMyfQ.lvBkyrggdEIg7Mkm0VeRtU0djuWx0AoDFbhSe9A-6W1E
+SUPABASE_ANON_KEY=YOUR_ANON_KEY   # optional
