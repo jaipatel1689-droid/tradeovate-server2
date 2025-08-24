@@ -1,19 +1,21 @@
 // src/lib/supabase.js
-require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 
-const url = process.env.SUPABASE_URL || '';
-const key =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.SUPABASE_ANON_KEY ||
-  '';
+// Prefer the Service Role key so we can write server-side.
+// If you intentionally want ANON, set SUPABASE_SERVICE_ROLE_KEY empty
+// and provide SUPABASE_ANON_KEY instead.
+const url =
+  (process.env.SUPABASE_URL || '').trim();
 
-if (!url || !key) {
-  console.warn('[supabase] Missing SUPABASE_URL and/or key in .env — inserts will fail.');
-}
+const key =
+  (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim() ||
+  (process.env.SUPABASE_ANON_KEY || '').trim();
+
+if (!url) throw new Error('SUPABASE_URL is required.');
+if (!key) throw new Error('SUPABASE key is required (SERVICE_ROLE or ANON).');
 
 const sb = createClient(url, key, {
-  auth: { persistSession: false },
+  auth: { persistSession: false }
 });
 
 module.exports = sb;

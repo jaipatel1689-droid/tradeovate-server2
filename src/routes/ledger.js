@@ -1,82 +1,57 @@
 // src/routes/ledger.js
 const express = require('express');
-const { sb } = require('../lib/supabase');
-const { validateBody, ledgerInsertSchema } = require('../lib/validate');
+const router  = express.Router();
+const sb      = require('../lib/supabase');
 
-const router = express.Router();
+const isUUID = v =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    .test(String(v || '').trim());
 
-// GET /ledger  -> uses fallback user for convenience while developing
-router.get('/', async (_req, res) => {
+// List recent ledger entries for a user
+router.get('/', async (req, res) => {
+  const user_id = (req.query.user_id || '').trim();
+
+  if (!isUUID(user_id)) return res.status(400).json({ error: 'bad_uuid', detail: 'user_id' });
+
   try {
-    const userId = "c61df5bb-d504-4460-9c29-33e26860eee5"; // dev fallback
     const { data, error } = await sb
-      .from('pl_ledger')
+      .from('ledger')
       .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    res.json(data || []);
+      .eq('user_id', user_id)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) return res.status(500).json({ error: 'server_error', detail: error.message });
+
+    return res.json(data || []);
   } catch (err) {
-    res.status(500).json({ ok: false, error: String(err.message || err) });
+    return res.status(500).json({ error: 'server_error', detail: err.message });
   }
 });
 
-// GET /ledger/:userId  -> explicit user
-router.get('/:userId', async (req, res) => {
+// Add a ledger entry (e.g., REALIZED_PNL)
+router.post('/', async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { data, error } = await sb
-      .from('pl_ledger')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    res.json(data || []);
-  } catch (err) {
-    res.status(500).json({ ok: false, error: String(err.message || err) });
-  }
-});
-
-// POST /ledger  -> validate then insert
-router.post('/', validateBody(ledgerInsertSchema), async (req, res) => {
-  try {
-    const {
-      trade_ref,
-      realized_pl_cents,
-      pl_date,
-      user_id,
-      account_id,
-    } = req.valid;
-
-    // dev defaults so you can keep testing quickly
-    const finalUserId = user_id || "c61df5bb-d504-4460-9c29-33e26860eee5";
-    const finalAccountId = account_id || "12345";
-
-    const payload = {
-      user_id: finalUserId,
-      account_id: finalAccountId,
-      trade_ref,
-      realized_pl_cents,  // cents as integer
-      pl_date,            // YYYY-MM-DD string
-    };
-
-    const { data, error } = await sb
-      .from('pl_ledger')
-      .insert(payload)
-      .select()
-      .single();
-
-    if (error) {
-      // Bubble up FK / unique constraint messages cleanly
-      return res.status(400).json({ ok: false, error: error.message });
+    const { user_id, type, amount, notes = null } = req.body || {};
+    if (!isUUID(user_id) || !type || typeof amount === 'undefined') {
+      return res.status(400).json({ error: 'missing_fields' });
     }
 
-    return res.status(201).json({ ok: true, row: data });
+    const payload = {
+      user_id,
+      type,           // e.g., REALIZED_PNL
+      amount: Number(amount),
+      notes,
+      created_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await sb.from('ledger').insert(payload).select().maybeSingle();
+    if (error) return res.status(500).json({ error: 'insert_error', detail: error.message });
+
+    return res.json(data);
   } catch (err) {
-    res.status(500).json({ ok: false, error: String(err.message || err) });
+    return res.status(500).json({ error: 'server_error', detail: err.message });
   }
 });
 
 module.exports = router;
-
-
