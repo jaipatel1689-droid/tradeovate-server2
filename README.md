@@ -1,21 +1,52 @@
 # tradeovate-server2
 
-## Setup
-1. Node 18+ (dev is on Node v24).
-2. Create `.env` from `.env.example` and fill real values locally (do **not** commit).
-3. Install & run:
-   ```bash
-   npm install
-   npm start
+Node/Express server for tracking trading signals & orders, backed by Supabase.  
+This repo contains the Express routes, Supabase client wrapper, and docs to run the service locally or in deployment.
 
-# 6) Confirm the two “must-have” files are in GitHub
-- `src/index.js`
-- `src/lib/supabase.js`
-- `src/routes/signals.js`
-(Plus the other routes you have.)
+---
 
-# 7) Tell me “Pushed”
-Once that push is live, I’ll review the repo structure, line-by-line, and prepare a clean patch (route wiring, Supabase client, schema touches, and the `sb.from` issue prevention). I’ll hand you a copy‑pasteable PR diff so you can merge locally or through GitHub in one shot.
+## 🚀 Stack
+- Node 18+ (dev is on Node v24 OK)
+- Express
+- supabase-js client
+- Postgres (Supabase)
 
-If any push command errors out, paste the exact error and I’ll give the one‑liner to fix it.
-::contentReference[oaicite:0]{index=0}
+---
+
+## 📂 Folder Layout
+/src
+index.js            # server entry
+/lib
+supabase.js       # supabase client wrapper
+validate.js       # validation helpers
+/routes
+dev.js
+dashboard.js
+orders.js
+executions.js
+signals.js
+tokensIntake.js
+settings.js
+ledger.js
+---
+## ⚙️ Environment variables
+
+Create a `.env` file in your project root (never commit real secrets).  
+Use this template as a guide:
+
+```env
+# Server basics
+PORT=8080
+BASE_URL=http://localhost:8080
+
+# Tradeovate OAuth placeholders (fill when ready)
+TRADEOVATE_CLIENT_ID=TODO_FILL_IN
+TRADEOVATE_CLIENT_SECRET=TODO_FILL_IN
+TRADEOVATE_OAUTH_AUTHORIZE_URL=TODO_FILL_IN
+TRADEOVATE_OAUTH_TOKEN_URL=TODO_FILL_IN
+TRADEOVATE_REDIRECT_URI=http://localhost:8080/auth/callback
+
+# Supabase (replace with your project info)
+SUPABASE_URL=https://etgbprdctaq1wukmkymq.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY   # never commit the real key
+SUPABASE_ANON_KEY=YOUR_ANON_KEY                   # optional
