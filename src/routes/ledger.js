@@ -1,82 +1,45 @@
 // src/routes/ledger.js
 const express = require('express');
-const { sb } = require('../lib/supabase');
-const { validateBody, ledgerInsertSchema } = require('../lib/validate');
+const router  = express.Router();
+const sb      = require('../lib/supabase');
 
-const router = express.Router();
+const isUUID = (v) =>
+  typeof v === 'string' &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 
-// GET /ledger  -> uses fallback user for convenience while developing
-router.get('/', async (_req, res) => {
+// LIST ledger by user
+router.get('/', async (req, res) => {
+  const user_id = String(req.query.user_id || '').trim();
+  if (!isUUID(user_id)) return res.status(400).json({ error: 'bad_uuid', detail: 'user_id' });
   try {
-    const userId = "c61df5bb-d504-4460-9c29-33e26860eee5"; // dev fallback
     const { data, error } = await sb
-      .from('pl_ledger')
+      .from('ledger')
       .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    res.json(data || []);
+      .eq('user_id', user_id)
+      .order('ts', { ascending: false })
+      .limit(100);
+    if (error) return res.status(500).json({ error: 'list_failed', detail: error.message });
+    res.json(data ?? []);
   } catch (err) {
-    res.status(500).json({ ok: false, error: String(err.message || err) });
+    res.status(500).json({ error: 'server_error', detail: err.message });
   }
 });
 
-// GET /ledger/:userId  -> explicit user
-router.get('/:userId', async (req, res) => {
+// SUMMARY: realized P/L
+router.get('/summary', async (req, res) => {
+  const user_id = String(req.query.user_id || '').trim();
+  if (!isUUID(user_id)) return res.status(400).json({ error: 'bad_uuid', detail: 'user_id' });
   try {
-    const { userId } = req.params;
     const { data, error } = await sb
-      .from('pl_ledger')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    res.json(data || []);
-  } catch (err) {
-    res.status(500).json({ ok: false, error: String(err.message || err) });
-  }
-});
+      .from('ledger')
+      .select('amount')
+      .eq('user_id', user_id)
+      .eq('type', 'REALIZED_PNL');
+    if (error) return res.status(500).json({ error: 'select_failed', detail: error.message });
 
-// POST /ledger  -> validate then insert
-router.post('/', validateBody(ledgerInsertSchema), async (req, res) => {
-  try {
-    const {
-      trade_ref,
-      realized_pl_cents,
-      pl_date,
-      user_id,
-      account_id,
-    } = req.valid;
-
-    // dev defaults so you can keep testing quickly
-    const finalUserId = user_id || "c61df5bb-d504-4460-9c29-33e26860eee5";
-    const finalAccountId = account_id || "12345";
-
-    const payload = {
-      user_id: finalUserId,
-      account_id: finalAccountId,
-      trade_ref,
-      realized_pl_cents,  // cents as integer
-      pl_date,            // YYYY-MM-DD string
-    };
-
-    const { data, error } = await sb
-      .from('pl_ledger')
-      .insert(payload)
-      .select()
-      .single();
-
-    if (error) {
-      // Bubble up FK / unique constraint messages cleanly
-      return res.status(400).json({ ok: false, error: error.message });
-    }
-
-    return res.status(201).json({ ok: true, row: data });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: String(err.message || err) });
-  }
+    const total = (data || []).reduce((acc, r) => acc + Number(r.amount || 0), 0);
+    res.json({ user_id, realized_pnl: total });
+  } catch (err) { res.status(500).json({ error: 'server_error', detail: err.message }); }
 });
 
 module.exports = router;
-
-
