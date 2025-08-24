@@ -2,14 +2,14 @@
 require('dotenv').config();
 
 const express = require('express');
-const morgan  = require('morgan');
-const cors    = require('cors');
+const cors = require('cors');
+const morgan = require('morgan');
+
+// import routes BEFORE using them, but AFTER we create the app instance
 const signalsRoutes = require('./routes/signals');
-app.use('/signals', signalsRoutes);
 
-
-const app  = express();
-const PORT = Number(process.env.PORT || 8080);
+const app = express();
+const PORT = Number(process.env.PORT) || 8080;
 
 // ---------- middleware
 app.use(express.json());
@@ -21,33 +21,22 @@ app.get('/healthz', (_req, res) => {
   res.json({ ok: true, ts: new Date().toISOString() });
 });
 
-// ---------- helper to mount optional routes without crashing
-function mountOptional(path, mountFn) {
-  try {
-    const router = require(mountFn);
-    app.use(path, router);
-    console.log(`Mounted ${path} from ${mountFn}`);
-  } catch (err) {
-    console.warn(`Skipping ${path}: ${mountFn} ${err.code || ''}`);
-  }
-}
-
 // ---------- routes
-mountOptional('/dev',         './routes/dev');
-mountOptional('/dashboard',   './routes/dashboard');
-mountOptional('/orders',      './routes/orders');
-mountOptional('/executions',  './routes/executions');
-// tokens is optional; your project may not have it:
-mountOptional('/tokens',      './routes/tokens');
-// ✅ required for this task:
-mountOptional('/signals',     './routes/signals');
+app.use('/signals', signalsRoutes);
+
+// ---------- 404
+app.use((_req, res) => {
+  res.status(404).json({ error: 'not_found' });
+});
+
+// ---------- error handler
+// eslint-disable-next-line no-unused-vars
+app.use((err, _req, res, _next) => {
+  console.error('server error:', err);
+  res.status(500).json({ error: 'server_error', detail: err.message });
+});
 
 // ---------- start
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
-  console.log(`Mock features enabled (FEATURE_USE_MOCK=${process.env.FEATURE_USE_MOCK || 0})`);
 });
-
-module.exports = app;
-
-
